@@ -1,0 +1,142 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// COMPANY — root of everything, all other tables point here
+// ============================================================
+model Company {
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  password       String
+  slug           String   @unique
+  chatbotName    String   @default("Support Assistant")
+  welcomeMessage String   @default("Hello! How can I help you today?")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  documents          Document[]
+  conversations      Conversation[]
+  refreshTokens      RefreshToken[]
+  analyticsSummaries AnalyticsSummary[]
+
+  @@map("companies")
+}
+
+// ============================================================
+// REFRESH TOKEN — for JWT auth with revokable sessions
+// ============================================================
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  @@index([companyId])
+  @@map("refresh_tokens")
+}
+
+// ============================================================
+// DOCUMENT — uploaded PDFs and their processing state
+// ============================================================
+model Document {
+  id           String         @id @default(cuid())
+  companyId    String
+  company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  filename     String
+  fileSize     Int
+  fileUrl      String
+  status       DocumentStatus @default(PROCESSING)
+  pageCount    Int?
+  chunkCount   Int?
+  errorMessage String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  messages     Message[]
+  
+  @@index([companyId])
+  @@map("documents")
+}
+
+enum DocumentStatus {
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+// ============================================================
+// CONVERSATION — one customer session on a company's chatbot
+// ============================================================
+model Conversation {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sessionId  String   @unique
+  isResolved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  messages   Message[]
+  
+  @@index([companyId])
+  @@map("conversations")
+}
+
+// ============================================================
+// MESSAGE — individual chat messages (customer + AI replies)
+// ============================================================
+model Message {
+  id              String       @id @default(cuid())
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  documentId      String?
+  document        Document?    @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  role            MessageRole
+  content         String       @db.Text
+  sourceDocuments String?      @db.Text
+  createdAt       DateTime     @default(now())
+  
+  @@index([conversationId])
+  @@index([conversationId, createdAt])
+  @@map("messages")
+
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
+// ============================================================
+// ANALYTICS SUMMARY — daily pre-computed stats per company
+// ============================================================
+model AnalyticsSummary {
+  id                 String   @id @default(cuid())
+  companyId          String
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  date               DateTime
+  totalQuestions     Int      @default(0)
+  totalConversations Int      @default(0)
+  unansweredCount    Int      @default(0)
+  popularQuestions   String?  @db.Text
+  createdAt          DateTime @default(now())
+
+  @@unique([companyId, date])
+  @@map("analytics_summaries")
+}
