@@ -1,8 +1,12 @@
 import express from "express";
-import z, { success } from "zod";
+import z from "zod";
+import {Company} from "../models/company";
+
+const companyRegistration = new Company();
+
 
 const registerSchema = z.object({
-  company: z.string().min(1, "Company name is required"),
+  slug: z.string().min(1, "Company name is required"),
   name: z.string().min(1, "Full name is required"),
   email: z.email("Invalid email address"),
   password: z
@@ -26,14 +30,26 @@ export default async function handleRegister(
         errors: result.error.format,
       })
     }
+    const {slug, name, email, password} = result.data;
 
-    const {company, name, email, password} = result.data;
-    console.log(result.data);
+    const existingCompany = await companyRegistration.existingCompany(email);
+    if(existingCompany){
+      return res.status(400).json({error: "Company Already Registered"})
+    }
+
+    const existingSlug = await companyRegistration.existingSlug(slug)
+    if(existingSlug){
+      return res.status(400).json({error: "Slug Already taken change your Slug"})
+    }
+
+    const company = await companyRegistration.registerCompany(slug, name, email, password);
+    console.log(company);
     return res.status(200).json({
       success: true,
       message: "Company registered sucessfully",
     })
-  } catch (error) {
-    console.log(error)
+  } catch (err) {
+    console.error("Error during user signup:", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 }

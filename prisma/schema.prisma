@@ -12,9 +12,7 @@ datasource db {
   provider = "postgresql"
 }
 
-// ============================================================
-// COMPANY — root of everything, all other tables point here
-// ============================================================
+
 model Company {
   id             String   @id @default(cuid())
   name           String

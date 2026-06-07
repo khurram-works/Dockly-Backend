@@ -4,6 +4,7 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import authRouter  from "./src/routes/authRouter"
+import companyRouter from "./src/routes/companyRouter";
 
 
 const app = express();
@@ -18,6 +19,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use("/", authRouter);
+app.use("/dashboard", companyRouter);
 
 
 

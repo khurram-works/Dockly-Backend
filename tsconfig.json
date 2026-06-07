@@ -45,7 +45,7 @@
     "moduleResolution": "bundler",
     "forceConsistentCasingInFileNames": true,
   },
-  "include": ["app.ts"],
+  "include": ["app.ts", "src/**/*.ts", "src/**/*.d.ts"],
   "exclude": ["node_modules", "dist", "generated"]
 
 }
