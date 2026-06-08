@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { authenticateToken } from "../middleware/auth";
 import e from "express";
+import { uploadDocument, getDocuments } from "../controllers/handleDocumentUpload";
+import { handleUpload } from "../middleware/upload_middleware";
 
 const companyRouter = Router();
 companyRouter.use(authenticateToken);
@@ -20,5 +22,8 @@ companyRouter.get('/', (req: e.Request, res:e.Response)=>{
   }
 
 })
+
+companyRouter.post("/documents", handleUpload, uploadDocument)
+companyRouter.get("/documents", getDocuments)
 
 export default companyRouter;
