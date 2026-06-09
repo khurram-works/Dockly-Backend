@@ -56,7 +56,13 @@ export const uploadDocument = async (req: Request, res: Response) => {
 
     // Step 6: Save the document record in PostgreSQL
 
-    const document = await doc.createDocument(documentId, companyId, req.file.originalname, req.file.size, fileUrl)
+    const document = await doc.createDocument(
+      documentId,
+      companyId,
+      req.file.originalname,
+      req.file.size,
+      fileUrl,
+    );
     // const document = await prisma.document.create({
     //   data: {
     //     id: documentId,
@@ -80,6 +86,52 @@ export const uploadDocument = async (req: Request, res: Response) => {
     );
     // In Step 2, this becomes:
     // await notifyPythonService(document)
+    // Call Python service to process the document
+    // Don't await this — let it run in the background
+    // The document status will update in PostgreSQL when Python finishes
+    fetch("http://localhost:8000/api/process-document", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        documentId: document.id,
+        companyId: companyId,
+        fileUrl: fileUrl,
+        filename: req.file.originalname,
+      }),
+    })
+      .then(async (res) => {
+        const result = await res.json();
+        if (result.success) {
+          // Update document status to PROCESSED in PostgreSQL
+          await prisma.document.update({
+            where: { id: document.id },
+            data: {
+              status: "PROCESSED",
+              chunkCount: result.chunksCreated,
+              pageCount: result.pageCount,
+            },
+          });
+        } else {
+          // Update status to FAILED
+          await prisma.document.update({
+            where: { id: document.id },
+            data: {
+              status: "FAILED",
+              errorMessage: result.detail || "Processing failed",
+            },
+          });
+        }
+      })
+      .catch(async (err) => {
+        // Python service unreachable or crashed
+        await prisma.document.update({
+          where: { id: document.id },
+          data: {
+            status: "FAILED",
+            errorMessage: "Processing service unavailable",
+          },
+        });
+      });
 
     // Step 8: Return success to the frontend
     return res.status(201).json({
@@ -110,7 +162,7 @@ export const getDocuments = async (req: Request, res: Response) => {
   try {
     const companyId = req.company.id;
 
-    const documents = await doc.getDocuments(companyId)
+    const documents = await doc.getDocuments(companyId);
 
     return res.status(200).json({
       success: true,
@@ -141,7 +193,7 @@ export const deleteDocument = async (req: Request, res: Response) => {
     }
 
     // Step 1: Find the document and verify it belongs to this company
-    const document = await doc.deleteDocument(documentId, companyId)
+    const document = await doc.deleteDocument(documentId, companyId);
 
     if (!document) {
       return res.status(404).json({
