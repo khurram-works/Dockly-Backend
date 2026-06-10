@@ -63,7 +63,7 @@ export class Document {
 
   }
 
-  async deleteDocument(id: string, companyId: string){
+  async findDocument(id: string, companyId: string){
     try{
 
       const document = await prisma.document.findFirst({
@@ -79,7 +79,7 @@ export class Document {
      return document
 
     }catch(err){
-      console.error("Deleting Document error:", err);
+      console.error("Finding Document error:", err);
       throw err;
     }
   }
