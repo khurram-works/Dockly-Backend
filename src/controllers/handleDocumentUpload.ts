@@ -18,6 +18,18 @@ export const uploadDocument = async (req: Request, res: Response) => {
         message: "No file provided",
       });
     }
+    const Filename = req.file.originalname;
+
+    const already_uploaded_document = await prisma.document.findFirst({
+      where: {filename : Filename}
+    })
+
+    if(already_uploaded_document){
+      return res.status(400).json({
+        success: false,
+        message: "Document already exists",
+      });
+    }
 
     const companyId = req.company.id;
 
@@ -116,7 +128,6 @@ export const deleteDocument = async (req: Request, res: Response) => {
       const response = await fetch(`http://localhost:8000/api/delete-document/${documentId}`, {
         method: "DELETE",
       });
-      console.log(response.json())
     } catch (qdrantError) {
       console.error("Qdrant deletion failed:", qdrantError);
     }
