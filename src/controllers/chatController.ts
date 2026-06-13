@@ -94,7 +94,7 @@ export const sendChatMessage = async (req: Request, res: Response) => {
     res.setHeader("Content-Type", "text/event-stream")
     res.setHeader("Cache-Control", "no-cache")
     res.setHeader("Connection", "keep-alive")
-    res.setHeader("Access-Control-Allow-Origin", "http://localhost:3000")
+    res.setHeader("Access-Control-Allow-Origin", typeof (process.env.FRONTEND_URL))
     res.flushHeaders()
     const pythonResponse = await fetch("http://localhost:8000/api/query", {
       method: "POST",

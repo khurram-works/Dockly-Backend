@@ -1,13 +1,14 @@
 import { prisma } from "../../lib/prisma";
 import e from "express";
+const baseUrl = process.env.FRONTEND_URL
 
-export async function dashboardData(req: e.Request, res: e.Request) {
+export async function dashboardData(req: e.Request, res: e.Response) {
   try {
     const totalDocs = await prisma.document.count({
       where: { companyId: req.company.id },
     });
 
-    const totalConverstions = await prisma.conversation.count({
+    const totalConversations = await prisma.conversation.count({
       where: { companyId: req.company.id },
     });
 
@@ -23,22 +24,45 @@ export async function dashboardData(req: e.Request, res: e.Request) {
         companyId: req.company.id,
       },
       orderBy: { createdAt: "desc" },
-      take: 5,
+      take: 4,
       include: {
         messages: {
           where:{
             role: "USER"
           },
+          orderBy: { createdAt: "desc" },
+          take: 1,
           select:{
             id: true,
             content: true,
             createdAt: true,
-            
-
-
+            documentId: true
           }
         }
       },
     });
-  } catch (err) {}
+
+    const chatBot = await prisma.company.findUnique({
+      where: {id: req.company.id},
+      select:{
+        chatbotName: true,
+        slug: true
+      }
+    })
+
+    const slug = chatBot?.slug
+
+    return res.status(201).json({
+      success: true,
+      message: "Successfully Retrieved Dashboard Data",
+      TotalDocs: totalDocs,
+      TotalConversations: totalConversations,
+      QuestionsAsked: questionsAsked,
+      RecentConversations: recentConversations,
+      chatBotName: chatBot?.chatbotName,
+      chatBotUrl: `${baseUrl}/chat/${slug}`
+    });
+  } catch (err) {
+    console.log(err)
+  }
 }
