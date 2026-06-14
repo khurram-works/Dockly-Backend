@@ -9,33 +9,14 @@ import {
 } from "../controllers/handleDocumentUpload";
 import { handleUpload } from "../middleware/upload_middleware";
 import {prisma} from "../../lib/prisma"
+import { dashboardData } from "../controllers/dashBoardData";
 
 const baseUrl = process.env.FRONTEND_URL
 
 const companyRouter = Router();
 companyRouter.use(authenticateToken);
 
-companyRouter.get("/", async(req: e.Request, res: e.Response) => {
-  try {
-    const chatbotUrl = await prisma.company.findFirst({
-      where: {id: req.company.id,
-        email: req.company.email
-      },
-      select:{
-        slug: true
-    }
-    })
-    const slug = chatbotUrl?.slug
-
-    return res.status(201).json({
-      success: true,
-      message: "Successfully Retrieved Dashboard Data",
-      chatbotUrl: `${baseUrl}/chat/${slug}`
-    });
-  } catch (err) {
-    console.log(err);
-  }
-});
+companyRouter.get("/", dashboardData);
 
 companyRouter.post("/documents", handleUpload, uploadDocument);
 companyRouter.get("/documents", getDocuments);

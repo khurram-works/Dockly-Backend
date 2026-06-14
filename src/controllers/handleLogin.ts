@@ -27,7 +27,7 @@ export default async function handleLogin(req: e.Request, res: e.Response) {
     const result = loginSchema.safeParse(req.body);
     if (!result.success) {
       return res.status(401).json({
-        errors: result.error.format,
+        errors: result.error.format(),
       });
     }
 
