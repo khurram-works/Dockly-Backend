@@ -1,10 +1,9 @@
-import type { Request, Response } from "express"
-import { prisma } from "../../lib/prisma"
-
+import type { Request, Response } from "express";
+import { prisma } from "../../lib/prisma";
 
 export const getChatbotInfo = async (req: Request, res: Response) => {
   try {
-    const { slug } = req.params
+    const { slug } = req.params;
     if (typeof slug !== "string") {
       return res.status(400).json({
         success: false,
@@ -20,21 +19,21 @@ export const getChatbotInfo = async (req: Request, res: Response) => {
         chatbotName: true,
         welcomeMessage: true,
         isActive: true,
-      }
-    })
+      },
+    });
 
     if (!company) {
       return res.status(404).json({
         success: false,
-        message: "Chatbot not found"
-      })
+        message: "Chatbot not found",
+      });
     }
 
     if (!company.isActive) {
       return res.status(403).json({
         success: false,
-        message: "This chatbot is currently inactive"
-      })
+        message: "This chatbot is currently inactive",
+      });
     }
 
     return res.status(200).json({
@@ -43,92 +42,108 @@ export const getChatbotInfo = async (req: Request, res: Response) => {
       slug: company.slug,
       chatbotName: company.chatbotName,
       welcomeMessage: company.welcomeMessage,
-    })
-
+    });
   } catch (error) {
-    console.error("getChatbotInfo error:", error)
+    console.error("getChatbotInfo error:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to load chatbot"
-    })
+      message: "Failed to load chatbot",
+    });
   }
-}
-
+};
 
 export const sendChatMessage = async (req: Request, res: Response) => {
   try {
-    const { question, companyId, sessionId, conversationHistory } = req.body
+    const { question, companyId, sessionId, conversationHistory } = req.body;
 
- 
     if (!question || !companyId || !sessionId) {
       return res.status(400).json({
         success: false,
-        message: "question, companyId and sessionId are required"
-      })
+        message: "question, companyId and sessionId are required",
+      });
     }
 
-  
     let conversation = await prisma.conversation.findUnique({
-      where: { sessionId }
-    })
+      where: { sessionId },
+    });
 
     if (!conversation) {
       conversation = await prisma.conversation.create({
         data: {
           companyId,
           sessionId,
-          isResolved: false
-        }
-      })
+          isResolved: false,
+        },
+      });
     }
 
     await prisma.message.create({
       data: {
         conversationId: conversation.id,
         role: "USER",
-        content: question
-      }
-    })
+        content: question,
+      },
+    });
 
-
-    res.setHeader("Content-Type", "text/event-stream")
-    res.setHeader("Cache-Control", "no-cache")
-    res.setHeader("Connection", "keep-alive")
-    res.setHeader("Access-Control-Allow-Origin", typeof (process.env.FRONTEND_URL))
-    res.flushHeaders()
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader(
+      "Access-Control-Allow-Origin",
+      typeof process.env.FRONTEND_URL,
+    );
+    res.flushHeaders();
     const pythonResponse = await fetch("http://localhost:8000/api/query", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         question,
         companyId,
-        conversationHistory: conversationHistory || []
-      })
-    })
+        conversationHistory: conversationHistory || [],
+      }),
+    });
 
     if (!pythonResponse.ok) {
-      res.write(`data: ${JSON.stringify({ type: "error", content: "AI service unavailable" })}\n\n`)
-      res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`)
-      res.end()
-      return
+      res.write(
+        `data: ${JSON.stringify({ type: "error", content: "AI service unavailable" })}\n\n`,
+      );
+      res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
+      res.end();
+      return;
     }
 
+    const pythonData = await pythonResponse.json();
+    const answer: string = pythonData.answer;
+    const sources: {
+      documentId?: string;
+      filename: string;
+      pageNumber: number;
+    }[] = pythonData.sources || [];
 
-    const pythonData = await pythonResponse.json()
-    const answer: string = pythonData.answer
-    const sources = pythonData.sources || []
-
-
-    const words = answer.split(" ")
+    const words = answer.split(" ");
 
     for (const word of words) {
-      res.write(`data: ${JSON.stringify({ type: "chunk", content: word + " " })}\n\n`)
-      await new Promise(resolve => setTimeout(resolve, 30))
+      res.write(
+        `data: ${JSON.stringify({ type: "chunk", content: word + " " })}\n\n`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 30));
     }
 
-    res.write(`data: ${JSON.stringify({ type: "sources", sources })}\n\n`)
-    res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`)
-    res.end()
+    res.write(`data: ${JSON.stringify({ type: "sources", sources })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
+    res.end();
+
+    let primaryDocumentId: string | null = null;
+    if (sources.length > 0 && sources[0]?.documentId) {
+      const doc = await prisma.document.findFirst({
+        where: {
+          id: sources[0]?.documentId,
+          companyId,
+        },
+        select: { id: true },
+      });
+      primaryDocumentId = doc?.id ?? null;
+    }
 
 
     await prisma.message.create({
@@ -136,18 +151,22 @@ export const sendChatMessage = async (req: Request, res: Response) => {
         conversationId: conversation.id,
         role: "ASSISTANT",
         content: answer,
-        sourceDocuments: JSON.stringify(sources)
-      }
-    })
-
+        sourceDocuments: JSON.stringify(sources),
+        documentId: primaryDocumentId,
+      },
+    });
   } catch (error) {
-    console.error("sendChatMessage error:", error)
+    console.error("sendChatMessage error:", error);
     if (res.headersSent) {
-      res.write(`data: ${JSON.stringify({ type: "error", content: "Something went wrong" })}\n\n`)
-      res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`)
-      res.end()
+      res.write(
+        `data: ${JSON.stringify({ type: "error", content: "Something went wrong" })}\n\n`,
+      );
+      res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
+      res.end();
     } else {
-      res.status(500).json({ success: false, message: "Failed to process message" })
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to process message" });
     }
   }
-}
+};

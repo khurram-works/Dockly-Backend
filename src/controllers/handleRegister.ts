@@ -32,7 +32,7 @@ export default async function handleRegister(
     if (!result.success) {
       return res.status(401).json({
         message: "Validation Failed",
-        errors: result.error.format,
+        errors: result.error.format(),
       });
     }
     const { slug, name, email, password } = result.data;
