@@ -120,6 +120,12 @@ export const sendChatMessage = async (req: Request, res: Response) => {
       pageNumber: number;
     }[] = pythonData.sources || [];
 
+    const isResolved = !answer.includes("I don't have information")
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { isResolved }
+    })
+
     const words = answer.split(" ");
 
     for (const word of words) {
