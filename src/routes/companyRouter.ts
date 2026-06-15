@@ -10,6 +10,7 @@ import {
 import { handleUpload } from "../middleware/upload_middleware";
 import {prisma} from "../../lib/prisma"
 import { dashboardData } from "../controllers/dashBoardData";
+import analyticsSummary from "../controllers/analyticsSummary";
 
 const baseUrl = process.env.FRONTEND_URL
 
@@ -24,7 +25,7 @@ companyRouter.post(
   "/:documentId/reprocess",
   reprocessDocument,
 );
-
-companyRouter.delete("/:documentId/delete", deleteDocument)
+companyRouter.delete("/:documentId/delete", deleteDocument);
+companyRouter.get("/analytics", analyticsSummary);
 
 export default companyRouter;
