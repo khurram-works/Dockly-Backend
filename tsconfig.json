@@ -43,6 +43,7 @@
     "esModuleInterop": true,
     "ignoreDeprecations": "5.0",
     "moduleResolution": "bundler",
+    "noEmit": true,
     "forceConsistentCasingInFileNames": true,
   },
   "include": ["app.ts", "src/**/*.ts", "src/**/*.d.ts"],

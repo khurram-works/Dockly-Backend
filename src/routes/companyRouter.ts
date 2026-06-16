@@ -11,6 +11,7 @@ import { handleUpload } from "../middleware/upload_middleware";
 import {prisma} from "../../lib/prisma"
 import { dashboardData } from "../controllers/dashBoardData";
 import analyticsSummary from "../controllers/analyticsSummary";
+import {conversations} from "../controllers/conversations"
 
 const baseUrl = process.env.FRONTEND_URL
 
@@ -27,5 +28,6 @@ companyRouter.post(
 );
 companyRouter.delete("/:documentId/delete", deleteDocument);
 companyRouter.get("/analytics", analyticsSummary);
+companyRouter.get("/conversations", conversations)
 
 export default companyRouter;

@@ -88,10 +88,6 @@ export const sendChatMessage = async (req: Request, res: Response) => {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
-    res.setHeader(
-      "Access-Control-Allow-Origin",
-      typeof process.env.FRONTEND_URL,
-    );
     res.flushHeaders();
     const pythonResponse = await fetch("http://localhost:8000/api/query", {
       method: "POST",
@@ -112,8 +108,12 @@ export const sendChatMessage = async (req: Request, res: Response) => {
       return;
     }
 
+    console.log("Step 1: Request received");
+
     const pythonData = await pythonResponse.json();
+    console.log("Step 2:", pythonData);
     const answer: string = pythonData.answer;
+    console.log("Step 3:", answer);
     const sources: {
       documentId?: string;
       filename: string;
@@ -127,6 +127,7 @@ export const sendChatMessage = async (req: Request, res: Response) => {
     })
 
     const words = answer.split(" ");
+    console.log("Step 4: Streaming response");
 
     for (const word of words) {
       res.write(
@@ -138,6 +139,7 @@ export const sendChatMessage = async (req: Request, res: Response) => {
     res.write(`data: ${JSON.stringify({ type: "sources", sources })}\n\n`);
     res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
     res.end();
+    console.log("Step 5: Stream ended");
 
     let primaryDocumentId: string | null = null;
     if (sources.length > 0 && sources[0]?.documentId) {
@@ -150,6 +152,8 @@ export const sendChatMessage = async (req: Request, res: Response) => {
       });
       primaryDocumentId = doc?.id ?? null;
     }
+
+    console.log("Step 6: Assistant message saved");
 
 
     await prisma.message.create({

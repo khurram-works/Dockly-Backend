@@ -37,6 +37,10 @@ export default async function analyticsSummary(
   thirtyDaysAgo.setDate(now.getDate() - 30);
   thirtyDaysAgo.setHours(0, 0, 0, 0);
 
+  const startOfWeek = new Date();
+  startOfWeek.setHours(0, 0, 0, 0);
+  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+
   try {
     const [
       questionsToday,
@@ -140,7 +144,7 @@ export default async function analyticsSummary(
 
     const normalizeText = (str: string) =>
       str
-        .replace(/[^\x20-\x7E]/g, " ") 
+        .replace(/[^\x20-\x7E]/g, " ")
         .trim()
         .toLowerCase()
         .replace(/[?.!]+$/, "")
@@ -162,13 +166,15 @@ export default async function analyticsSummary(
         _count: { content: count },
       }));
 
-
     const rawCounts = await prisma.$queryRaw<DayCountRow[]>`
-      SELECT 
-        EXTRACT(DOW FROM "createdAt") AS day_index,
-        COUNT(*)::int AS count
-      FROM "conversations"
-      WHERE "companyId" = ${req.company.id}
+      SELECT
+        EXTRACT(DOW FROM m."createdAt")::int AS day_index,
+        COUNT(DISTINCT m."conversationId")::int AS count
+      FROM messages m
+      INNER JOIN conversations c
+        ON m."conversationId" = c.id
+      WHERE c."companyId" = ${req.company.id}
+        AND m."createdAt" >= ${startOfWeek}
       GROUP BY day_index
       ORDER BY day_index ASC
     `;
@@ -249,6 +255,57 @@ export default async function analyticsSummary(
           )
         : null;
 
+    const recentDocuments = await prisma.document.findMany({
+      where: { companyId: req.company.id },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: {
+        filename: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+
+    const recentConversations = await prisma.conversation.findMany({
+      where: { companyId: req.company.id },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: {
+        createdAt: true,
+        isResolved: true,
+        messages: {
+          where: { role: "USER" },
+          orderBy: { createdAt: "asc" },
+          take: 1,
+          select: { content: true },
+        },
+      },
+    });
+
+    const documentEvents = recentDocuments.map((doc) => ({
+      type: "document",
+      icon: "📄",
+      text: `${doc.filename} ${doc.status === "PROCESSED" ? "uploaded and processed" : doc.status === "FAILED" ? "failed to process" : "is being processed"}`,
+      createdAt: doc.createdAt,
+    }));
+
+    const conversationEvents = recentConversations
+      .filter((conv) => conv.messages.length > 0)
+
+      .map((conv) => ({
+        type: "conversation",
+        icon: "💬",
+        text: `Customer asked "${conv.messages[0]!.content.slice(0, 60)}${conv.messages[0]!.content.length > 60 ? "..." : ""}"`,
+        createdAt: conv.createdAt,
+      }));
+
+    const activityFeed = [...documentEvents, ...conversationEvents]
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
+      .slice(0, 10);
+
     return res.status(200).json({
       success: true,
       data: {
@@ -261,6 +318,7 @@ export default async function analyticsSummary(
         timeline: finalChartData,
         popularQuestions,
         dayOfWeekDistribution,
+        activityFeed,
       },
     });
   } catch (err) {
