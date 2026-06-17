@@ -112,19 +112,12 @@ export const sendChatMessage = async (req: Request, res: Response) => {
 
     const pythonData = await pythonResponse.json();
     console.log("Step 2:", pythonData);
-    const answer: string = pythonData.answer;
-    console.log("Step 3:", answer);
-    const sources: {
-      documentId?: string;
-      filename: string;
-      pageNumber: number;
-    }[] = pythonData.sources || [];
+    const { answer, sources, foundAnswer } = pythonData;
 
-    const isResolved = !answer.includes("I don't have information")
     await prisma.conversation.update({
       where: { id: conversation.id },
-      data: { isResolved }
-    })
+      data: { isResolved: foundAnswer },
+    });
 
     const words = answer.split(" ");
     console.log("Step 4: Streaming response");
@@ -141,30 +134,16 @@ export const sendChatMessage = async (req: Request, res: Response) => {
     res.end();
     console.log("Step 5: Stream ended");
 
-    let primaryDocumentId: string | null = null;
-    if (sources.length > 0 && sources[0]?.documentId) {
-      const doc = await prisma.document.findFirst({
-        where: {
-          id: sources[0]?.documentId,
-          companyId,
-        },
-        select: { id: true },
-      });
-      primaryDocumentId = doc?.id ?? null;
-    }
-
-    console.log("Step 6: Assistant message saved");
-
-
     await prisma.message.create({
       data: {
         conversationId: conversation.id,
         role: "ASSISTANT",
         content: answer,
-        sourceDocuments: JSON.stringify(sources),
-        documentId: primaryDocumentId,
+        sourceDocuments: sources ? JSON.stringify(sources) : null,
+        documentId: sources?.[0]?.documentId ?? null,
       },
     });
+    console.log("Step 6: Assistant message saved");
   } catch (error) {
     console.error("sendChatMessage error:", error);
     if (res.headersSent) {
