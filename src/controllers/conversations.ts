@@ -1,6 +1,6 @@
 import e from "express";
 import { prisma } from "../../lib/prisma";
-import { success } from "zod";
+import { Prisma } from "../../generated/prisma/client";
 
 export async function conversations(req: e.Request, res: e.Response) {
   const page = parseInt(req.query.page as string) || 1;
@@ -9,36 +9,35 @@ export async function conversations(req: e.Request, res: e.Response) {
   const days = Number(req.query.days || 30);
   const limit = 20;
   const date = new Date();
-  date.setDate(date.getDate()-days);
+  date.setDate(date.getDate() - days);
 
-  const whereClause: any = {
-    companyId: req.company.id
+  const whereClause: Prisma.ConversationWhereInput = {
+    companyId: req.company.id,
+  };
+
+  if (status === "ANSWERED") {
+    whereClause.isResolved = true;
+  } else if (status === "UNANSWERED") {
+    whereClause.isResolved = false;
   }
 
-  if (status === 'ANSWERED') {
-    whereClause.isResolved = true
-  } else if (status === 'UNANSWERED') {
-    whereClause.isResolved = false
-  }
-
-  if (search) {
+  if (search.trim() !== "") {
     whereClause.messages = {
       some: {
-        role: 'USER',
+        role: "USER",
         content: {
           contains: search,
-          mode: 'insensitive'
-        }
-      }
-    }
+          mode: "insensitive",
+        },
+      },
+    };
   }
 
-  if(days){
-    whereClause.createdAt ={
-      gte: date
-    }
+  if (days) {
+    whereClause.updatedAt = {
+      gte: date,
+    };
   }
-
 
   try {
     const [totalConversations, unansweredCount, answeredCount] =
@@ -66,7 +65,7 @@ export async function conversations(req: e.Request, res: e.Response) {
       where: whereClause,
       orderBy: { updatedAt: "desc" },
       take: limit,
-      skip: (page - 1) * 20,
+      skip: (page - 1) * limit,
       include: {
         messages: {
           orderBy: { createdAt: "desc" },
@@ -87,7 +86,7 @@ export async function conversations(req: e.Request, res: e.Response) {
 
       return {
         id: conv.id,
-        number: totalConversations - index,
+        number: totalConversations - ((page - 1) * limit + index),
 
         question: userMessage?.content || "No question",
 
@@ -104,7 +103,7 @@ export async function conversations(req: e.Request, res: e.Response) {
     });
     const totalPages = Math.ceil(totalConversations / limit);
 
-    return res.status(201).json({
+    return res.status(200).json({
       success: true,
       data: {
         conversations: tableRows,
@@ -120,6 +119,12 @@ export async function conversations(req: e.Request, res: e.Response) {
       },
     });
   } catch (err) {
-    console.log("Error fetching conversations", err);
+    console.error(err);
+
+    return res.status(500).json({
+      success: false,
+
+      message: "Failed to fetch conversations",
+    });
   }
 }
