@@ -13,8 +13,10 @@ import { dashboardData } from "../controllers/dashBoardData";
 import analyticsSummary from "../controllers/analyticsSummary";
 import {conversations} from "../controllers/conversations";
 import { conversationDetail } from "../controllers/conversationDetail";
+import { companyDetail } from "../controllers/companyDetails";
+import { updatePassword } from "../controllers/updatePassword";
+import { updateProfile } from "../controllers/updateProfile";
 
-const baseUrl = process.env.FRONTEND_URL
 
 const companyRouter = Router();
 companyRouter.use(authenticateToken);
@@ -31,5 +33,8 @@ companyRouter.delete("/:documentId/delete", deleteDocument);
 companyRouter.get("/analytics", analyticsSummary);
 companyRouter.get("/conversations", conversations);
 companyRouter.get("/conversations/:id", conversationDetail);
+companyRouter.get("/profile/:id", companyDetail);
+companyRouter.patch("/profile/update", updateProfile);
+companyRouter.patch("/profile/password", updatePassword);
 
 export default companyRouter;
