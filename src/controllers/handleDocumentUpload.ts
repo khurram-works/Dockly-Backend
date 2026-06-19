@@ -86,12 +86,15 @@ export const uploadDocument = async (req: Request, res: Response) => {
 export const getDocuments = async (req: Request, res: Response) => {
   try {
     const companyId = req.company.id;
+    const page = Number(req.query.page) || 1;
 
-    const documents = await doc.getDocuments(companyId);
+    const documents = await doc.getDocuments(companyId, page);
+    
 
     return res.status(200).json({
       success: true,
-      documents,
+      documents: documents.documents,
+      pagination: documents.pagination
     });
   } catch (error) {
     console.error("Get documents error:", error);

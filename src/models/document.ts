@@ -32,29 +32,41 @@ export class Document {
   }
 
 
-  async getDocuments(companyId: string){
+  async getDocuments(companyId: string, page: number){
+    const limit = 4
     try{
       const documents = await prisma.document.findMany({
         where: { companyId },
-
-  
-        orderBy: { createdAt: "desc" },
-
-  
+        orderBy: { updatedAt: "desc" },
+        take: limit, 
+        skip: (page - 1) * limit,
         select: {
           id: true,
           filename: true,
           fileSize: true,
           status: true,
-          pageCount: true,
-          chunkCount: true,
-          errorMessage: true,
           createdAt: true,
-
+          updatedAt: true
         },
       });
 
-      return documents;
+      const totalDocs = await prisma.document.count({
+        where: {
+          companyId
+        }
+      })
+      const totalPages = Math.ceil(totalDocs/limit)     
+
+      return {
+        documents,
+        pagination: {
+          totalDocs,
+          totalPages,
+          currentPage: page,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1,
+        },
+      };
 
     }catch(err){
       console.error("Getting Documents error:", err);

@@ -32,7 +32,7 @@ export async function dashboardData(req: e.Request, res: e.Response) {
       where: {
         companyId: req.company.id,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { updatedAt: "desc" },
       take: 4,
       include: {
         messages: {

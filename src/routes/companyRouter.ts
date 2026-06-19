@@ -16,6 +16,7 @@ import { conversationDetail } from "../controllers/conversationDetail";
 import { companyDetail } from "../controllers/companyDetails";
 import { updatePassword } from "../controllers/updatePassword";
 import { updateProfile } from "../controllers/updateProfile";
+import { docDetails } from "../controllers/docDetails";
 
 
 const companyRouter = Router();
@@ -36,5 +37,7 @@ companyRouter.get("/conversations/:id", conversationDetail);
 companyRouter.get("/profile/:id", companyDetail);
 companyRouter.patch("/profile/update", updateProfile);
 companyRouter.patch("/profile/password", updatePassword);
+companyRouter.get('/documents/:id', docDetails);
+
 
 export default companyRouter;
