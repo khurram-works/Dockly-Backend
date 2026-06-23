@@ -55,7 +55,7 @@ export default async function handleRegister(
       email,
       password,
     );
-    console.log(company);
+
     return res.status(200).json({
       success: true,
       message: "Company registered sucessfully",

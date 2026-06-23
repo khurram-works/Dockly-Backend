@@ -128,9 +128,10 @@ export const deleteDocument = async (req: Request, res: Response) => {
     }
 
     try {
-      const response = await fetch(`http://localhost:8000/api/delete-document/${documentId}`, {
+      const response = await fetch(`${process.env.RAG_SERVICE_URL}/api/delete-document/${documentId}`, {
         method: "DELETE",
       });
+      console.log(response)
     } catch (qdrantError) {
       console.error("Qdrant deletion failed:", qdrantError);
     }

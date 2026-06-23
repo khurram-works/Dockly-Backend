@@ -9,7 +9,7 @@ export const sendToPythonService = async (
   filename: string
 ) => {
   try {
-    const response = await fetch("http://localhost:8000/api/process-document", {
+    const response = await fetch(`${process.env.RAG_SERVICE_URL}/api/process-document`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -21,6 +21,7 @@ export const sendToPythonService = async (
     });
 
     const result = await response.json();
+    
 
     if (result.success) {
       await prisma.document.update({
@@ -43,7 +44,7 @@ export const sendToPythonService = async (
       console.log(`Document ${documentId} processing failed: ${result.detail}`);
     }
   } catch (err) {
-    // Python unreachable or crashed
+
     await prisma.document.update({
       where: { id: documentId },
       data: {
@@ -54,18 +55,3 @@ export const sendToPythonService = async (
     console.log(`Python service unreachable for document ${documentId}`);
   }
 };
-// Now in your uploadDocument function, replace the entire fetch block with one clean line:
-// typescript// REMOVE THIS entire fetch block:
-// fetch("http://localhost:8000/api/process-document", {
-//   method: "POST",
-//   // ... all the way to the last .catch
-// })
-
-// // REPLACE WITH THIS one line:
-// sendToPythonService(
-//   document.id,
-//   companyId,
-//   fileUrl,
-//   req.file.originalname
-// );
-// No await — runs in background while we respond to frontend immediately

@@ -89,7 +89,7 @@ export const sendChatMessage = async (req: Request, res: Response) => {
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
     res.flushHeaders();
-    const pythonResponse = await fetch("http://localhost:8000/api/query", {
+    const pythonResponse = await fetch(`${process.env.RAG_SERVICE_URL}/api/query`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -111,7 +111,7 @@ export const sendChatMessage = async (req: Request, res: Response) => {
     console.log("Step 1: Request received");
 
     const pythonData = await pythonResponse.json();
-    console.log("Step 2:", pythonData);
+    console.log("Step 2:", "Python data received successfully.");
     const { answer, sources, foundAnswer } = pythonData;
 
     await prisma.conversation.update({
