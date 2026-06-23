@@ -49,16 +49,9 @@ export default async function handleRegister(
         .json({ error: "Slug Already taken change your Slug" });
     }
 
-    const company = await companyRegistration.registerCompany(
-      slug,
-      name,
-      email,
-      password,
-    );
-
     return res.status(200).json({
       success: true,
-      message: "Company registered sucessfully",
+      message: "Company registered successfully",
     });
   } catch (err) {
     console.error("Error during user signup:", err);
