@@ -60,8 +60,8 @@ export default async function handleLogin(req: e.Request, res: e.Response) {
       },
     });
 
-    (setAccessTokenCookie(res, token),
-      setRefreshTokenCookie(res, refreshToken));
+    setAccessTokenCookie(res, token);
+    setRefreshTokenCookie(res, refreshToken);
 
     return res.status(200).json({
       message: "Login successful",
