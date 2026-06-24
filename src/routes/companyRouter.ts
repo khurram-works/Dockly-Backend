@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { authenticateToken } from "../middleware/auth";
-import e from "express";
 import {
   uploadDocument,
   getDocuments,
@@ -8,7 +7,6 @@ import {
   deleteDocument,
 } from "../controllers/handleDocumentUpload";
 import { handleUpload } from "../middleware/upload_middleware";
-import {prisma} from "../../lib/prisma"
 import { dashboardData } from "../controllers/dashBoardData";
 import analyticsSummary from "../controllers/analyticsSummary";
 import {conversations} from "../controllers/conversations";
