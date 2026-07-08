@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -33,9 +28,7 @@ model Company {
   @@map("companies")
 }
 
-// ============================================================
-// REFRESH TOKEN — for JWT auth with revokable sessions
-// ============================================================
+
 model RefreshToken {
   id        String   @id @default(cuid())
   token     String   @unique
@@ -49,9 +42,7 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
-// ============================================================
-// DOCUMENT — uploaded PDFs and their processing state
-// ============================================================
+
 model Document {
   id           String         @id @default(cuid())
   companyId    String
@@ -78,9 +69,7 @@ enum DocumentStatus {
   FAILED
 }
 
-// ============================================================
-// CONVERSATION — one customer session on a company's chatbot
-// ============================================================
+
 model Conversation {
   id         String   @id @default(cuid())
   companyId  String
@@ -96,9 +85,7 @@ model Conversation {
   @@map("conversations")
 }
 
-// ============================================================
-// MESSAGE — individual chat messages (customer + AI replies)
-// ============================================================
+
 model Message {
   id              String       @id @default(cuid())
   conversationId  String
@@ -121,9 +108,7 @@ enum MessageRole {
   ASSISTANT
 }
 
-// ============================================================
-// ANALYTICS SUMMARY — daily pre-computed stats per company
-// ============================================================
+
 model AnalyticsSummary {
   id                 String   @id @default(cuid())
   companyId          String
