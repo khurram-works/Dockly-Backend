@@ -12,7 +12,6 @@ export const uploadToSupabase = async (
     .upload(key, buffer, {
       contentType: mimeType,
       upsert: false
-     
     })
 
   if (error) {
@@ -23,7 +22,6 @@ export const uploadToSupabase = async (
   const { data: urlData } = supabase.storage
     .from(process.env.SUPABASE_BUCKET_NAME!)
     .getPublicUrl(key)
-
   return urlData.publicUrl
   
 }
@@ -33,7 +31,6 @@ export const deleteFromSupabase = async (key: string): Promise<void> => {
   const { error } = await supabase.storage
     .from(process.env.SUPABASE_BUCKET_NAME!)
     .remove([key])
-
   if (error) {
     throw new Error(`Storage delete failed: ${error.message}`)
   }

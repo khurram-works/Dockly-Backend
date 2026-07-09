@@ -14,10 +14,8 @@ const upload = multer({
 
     if (file.mimetype === 'application/pdf') {
       callback(null, true)
-      // It's a PDF — accept it
     } else {
       callback(new Error('Only PDF files are allowed'))
-      // Not a PDF — reject it with an error message
     }
   },
 })
