@@ -1,7 +1,5 @@
 import {prisma} from "../../lib/prisma"
 
-
-
 export const sendToPythonService = async (
   documentId: string,
   companyId: string,
