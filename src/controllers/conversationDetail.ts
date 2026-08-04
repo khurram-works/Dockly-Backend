@@ -1,16 +1,32 @@
 import { prisma } from "../../lib/prisma";
 import e from "express";
 
-export interface Source {
-  documentId: string;
-  filename: string;
-  pageNumber: number;
-}
+// export interface Source {
+//   documentId: string;
+//   filename: string;
+//   pageNumber: number;
+// }
 
-export interface GroupedSource {
-  documentId: string;
-  filename: string;
-  pages: number[];
+// export interface GroupedSource {
+//   documentId: string;
+//   filename: string;
+//   pages: number[];
+// }
+
+function normalizeConversationSources(raw: any[] = []) {
+  return raw.flatMap((src) => {
+    const pageNumbers = Array.isArray(src.pageNumbers)
+      ? src.pageNumbers
+      : src.pageNumber
+        ? [src.pageNumber]
+        : [];
+
+    return pageNumbers.map((pageNumber: number) => ({
+      documentId: src.documentId,
+      filename: src.filename,
+      pageNumber,
+    }));
+  });
 }
 
 export async function conversationDetail(req: e.Request, res: e.Response) {
@@ -49,10 +65,10 @@ export async function conversationDetail(req: e.Request, res: e.Response) {
     }
 
     const messagesWithSources = conversation.messages.map((msg) => {
-      const raw: Source[] =
-        msg.sourceDocuments ? JSON.parse(msg.sourceDocuments) : [];
+      const raw = msg.sourceDocuments ? JSON.parse(msg.sourceDocuments) : [];
+      const normalized = normalizeConversationSources(raw);
 
-      const grouped = raw.reduce<Record<string, GroupedSource>>((acc, src) => {
+      const grouped = normalized.reduce<Record<string, any>>((acc, src) => {
         if (!acc[src.filename]) {
           acc[src.filename] = {
             documentId: src.documentId,
@@ -60,7 +76,7 @@ export async function conversationDetail(req: e.Request, res: e.Response) {
             pages: [src.pageNumber],
           };
         } else {
-          acc[src.filename]!.pages.push(src.pageNumber);
+          acc[src.filename].pages.push(src.pageNumber);
         }
         return acc;
       }, {});
@@ -70,7 +86,7 @@ export async function conversationDetail(req: e.Request, res: e.Response) {
         role: msg.role,
         content: msg.content,
         createdAt: msg.createdAt,
-        sources: Object.values(grouped), 
+        sources: Object.values(grouped),
       };
     });
 
@@ -80,7 +96,7 @@ export async function conversationDetail(req: e.Request, res: e.Response) {
         id: conversation.id,
         isResolved: conversation.isResolved,
         createdAt: conversation.createdAt,
-        messages: messagesWithSources, 
+        messages: messagesWithSources,
       },
     });
   } catch (err) {

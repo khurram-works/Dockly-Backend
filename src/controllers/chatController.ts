@@ -1,6 +1,23 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../lib/prisma";
 
+function normalizeSources(sources: any[] = []) {
+  return sources.map((src) => {
+    const pageNumbers = Array.isArray(src.pageNumbers)
+      ? src.pageNumbers
+      : src.pageNumber
+        ? [src.pageNumber]
+        : [];
+
+    return {
+      documentId: src.documentId,
+      filename: src.filename,
+      pageNumbers,
+      chunkIndex: src.chunkIndex ?? null,
+    };
+  });
+}
+
 export const getChatbotInfo = async (req: Request, res: Response) => {
   try {
     const { slug } = req.params;
@@ -89,15 +106,18 @@ export const sendChatMessage = async (req: Request, res: Response) => {
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
     res.flushHeaders();
-    const pythonResponse = await fetch(`${process.env.RAG_SERVICE_URL}/api/query`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        question,
-        companyId,
-        conversationHistory: conversationHistory || [],
-      }),
-    });
+    const pythonResponse = await fetch(
+      `${process.env.RAG_SERVICE_URL}/api/query`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question,
+          companyId,
+          conversationHistory: conversationHistory || [],
+        }),
+      },
+    );
 
     if (!pythonResponse.ok) {
       res.write(
@@ -113,6 +133,7 @@ export const sendChatMessage = async (req: Request, res: Response) => {
     const pythonData = await pythonResponse.json();
     console.log("Step 2:", "Python data received successfully.");
     const { answer, sources, foundAnswer } = pythonData;
+    const normalizedSources = normalizeSources(sources);
 
     await prisma.conversation.update({
       where: { id: conversation.id },
@@ -129,7 +150,9 @@ export const sendChatMessage = async (req: Request, res: Response) => {
       await new Promise((resolve) => setTimeout(resolve, 30));
     }
 
-    res.write(`data: ${JSON.stringify({ type: "sources", sources })}\n\n`);
+    res.write(
+      `data: ${JSON.stringify({ type: "sources", sources: normalizedSources })}\n\n`,
+    );
     res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
     res.end();
     console.log("Step 5: Stream ended");
@@ -139,8 +162,11 @@ export const sendChatMessage = async (req: Request, res: Response) => {
         conversationId: conversation.id,
         role: "ASSISTANT",
         content: answer,
-        sourceDocuments: sources ? JSON.stringify(sources) : null,
-        documentId: sources?.[0]?.documentId ?? null,
+        sourceDocuments:
+          normalizedSources.length > 0
+            ? JSON.stringify(normalizedSources)
+            : null,
+        documentId: normalizedSources?.[0]?.documentId ?? null,
       },
     });
     console.log("Step 6: Assistant message saved");
