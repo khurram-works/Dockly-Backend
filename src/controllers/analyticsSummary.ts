@@ -257,25 +257,25 @@ export default async function analyticsSummary(
 
     const recentDocuments = await prisma.document.findMany({
       where: { companyId: req.company.id },
-      orderBy: { updatedAt: "desc" },
+      orderBy: { createdAt: "desc" },
       take: 10,
       select: {
         filename: true,
         status: true,
-        updatedAt: true,
+        createdAt: true,
       },
     });
 
     const recentConversations = await prisma.conversation.findMany({
       where: { companyId: req.company.id },
-      orderBy: { updatedAt: "desc" },
+      orderBy: { createdAt: "desc" },
       take: 10,
       select: {
-        updatedAt: true,
+        createdAt: true,
         isResolved: true,
         messages: {
           where: { role: "USER" },
-          orderBy: { createdAt: "desc" },
+          orderBy: { createdAt: "asc" },
           take: 1,
           select: { content: true },
         },
@@ -286,7 +286,7 @@ export default async function analyticsSummary(
       type: "document",
       icon: "📄",
       text: `${doc.filename} ${doc.status === "PROCESSED" ? "uploaded and processed" : doc.status === "FAILED" ? "failed to process" : "is being processed"}`,
-      updatedAt: doc.updatedAt,
+      createdAt: doc.createdAt,
     }));
 
     const conversationEvents = recentConversations
@@ -296,13 +296,13 @@ export default async function analyticsSummary(
         type: "conversation",
         icon: "💬",
         text: `Customer asked "${conv.messages[0]!.content.slice(0, 60)}${conv.messages[0]!.content.length > 60 ? "..." : ""}"`,
-        updatedAt: conv.updatedAt,
+        createdAt: conv.createdAt,
       }));
 
     const activityFeed = [...documentEvents, ...conversationEvents]
       .sort(
         (a, b) =>
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       )
       .slice(0, 10);
 

@@ -2,20 +2,30 @@ import type { Request, Response } from "express";
 import { prisma } from "../../lib/prisma";
 
 function normalizeSources(sources: any[] = []) {
-  return sources.map((src) => {
-    const pageNumbers = Array.isArray(src.pageNumbers)
-      ? src.pageNumbers
-      : src.pageNumber
+  const normalized = sources
+    .map((src) => {
+      const pageNumbers = Array.isArray(src.pageNumbers)
+        ? src.pageNumbers
+        : src.pageNumber
         ? [src.pageNumber]
         : [];
 
-    return {
-      documentId: src.documentId,
-      filename: src.filename,
-      pageNumbers,
-      chunkIndex: src.chunkIndex ?? null,
-    };
-  });
+      return {
+        documentId: typeof src.documentId === "string" ? src.documentId : null,
+        filename: typeof src.filename === "string" ? src.filename : null,
+        pageNumbers: pageNumbers.filter((page: unknown) => Number.isInteger(page)),
+      };
+    })
+    .filter((src) => src.documentId && src.filename);
+
+  return Array.from(
+    new Map(
+      normalized.map((src) => [
+        `${src.documentId}:${src.filename}:${src.pageNumbers.join(",")}`,
+        src,
+      ]),
+    ).values(),
+  );
 }
 
 export const getChatbotInfo = async (req: Request, res: Response) => {
@@ -55,7 +65,6 @@ export const getChatbotInfo = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       success: true,
-      id: company.id,
       slug: company.slug,
       chatbotName: company.chatbotName,
       welcomeMessage: company.welcomeMessage,
@@ -71,17 +80,38 @@ export const getChatbotInfo = async (req: Request, res: Response) => {
 
 export const sendChatMessage = async (req: Request, res: Response) => {
   try {
-    const { question, companyId, sessionId, conversationHistory } = req.body;
+    const { question, slug, sessionId, conversationHistory } = req.body;
 
-    if (!question || !companyId || !sessionId) {
+    if (!question || !slug || !sessionId) {
       return res.status(400).json({
         success: false,
-        message: "question, companyId and sessionId are required",
+        message: "question, slug and sessionId are required",
       });
     }
 
-    let conversation = await prisma.conversation.findUnique({
-      where: { sessionId },
+    const company = await prisma.company.findUnique({
+      where: { slug },
+      select: { id: true, isActive: true },
+    });
+
+    if (!company) {
+      return res.status(404).json({
+        success: false,
+        message: "Chatbot not found",
+      });
+    }
+
+    if (!company.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: "This chatbot is currently inactive",
+      });
+    }
+
+    const companyId = company.id;
+
+    let conversation = await prisma.conversation.findFirst({
+      where: { sessionId, companyId },
     });
 
     if (!conversation) {
@@ -106,18 +136,15 @@ export const sendChatMessage = async (req: Request, res: Response) => {
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
     res.flushHeaders();
-    const pythonResponse = await fetch(
-      `${process.env.RAG_SERVICE_URL}/api/query`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question,
-          companyId,
-          conversationHistory: conversationHistory || [],
-        }),
-      },
-    );
+    const pythonResponse = await fetch(`${process.env.RAG_SERVICE_URL}/api/query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        question,
+        companyId,
+        conversationHistory: conversationHistory || [],
+      }),
+    });
 
     if (!pythonResponse.ok) {
       res.write(

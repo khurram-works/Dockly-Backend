@@ -1,18 +1,6 @@
 import { prisma } from "../../lib/prisma";
 import e from "express";
 
-// export interface Source {
-//   documentId: string;
-//   filename: string;
-//   pageNumber: number;
-// }
-
-// export interface GroupedSource {
-//   documentId: string;
-//   filename: string;
-//   pages: number[];
-// }
-
 function normalizeConversationSources(raw: any[] = []) {
   return raw.flatMap((src) => {
     const pageNumbers = Array.isArray(src.pageNumbers)
