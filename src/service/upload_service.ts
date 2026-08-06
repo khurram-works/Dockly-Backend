@@ -5,26 +5,36 @@ export const uploadToSupabase = async (
   key: string,
   mimeType: string
 ): Promise<string> => {
-
+  const bucket = process.env.SUPABASE_BUCKET_NAME!;
   const { data, error } = await supabase.storage
-    .from(process.env.SUPABASE_BUCKET_NAME!)
- 
+    .from(bucket)
     .upload(key, buffer, {
       contentType: mimeType,
-      upsert: false
-    })
+      upsert: false,
+    });
 
   if (error) {
-    throw new Error(`Storage upload failed: ${error.message}`)
+    throw new Error(`Storage upload failed: ${error.message}`);
   }
 
+  if (process.env.SUPABASE_USE_SIGNED_URL === "true") {
+    const { data: signedData, error: signedError } =
+      await supabase.storage.from(bucket).createSignedUrl(key, 3600);
+
+    if (signedError) {
+      throw new Error(`Signed URL creation failed: ${signedError.message}`);
+    }
+
+    return signedData.signedUrl;
+  }
 
   const { data: urlData } = supabase.storage
-    .from(process.env.SUPABASE_BUCKET_NAME!)
-    .getPublicUrl(key)
-  return urlData.publicUrl
-  
-}
+    .from(bucket)
+    .getPublicUrl(key);
+
+
+  return urlData.publicUrl;
+};
 
 
 export const deleteFromSupabase = async (key: string): Promise<void> => {

@@ -11,6 +11,9 @@ import { sendToPythonService } from "../service/send_to_python";
 
 const doc = new Document();
 export const uploadDocument = async (req: Request, res: Response) => {
+  const companyId = req.company.id;
+
+  const documentId = createId();
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -21,19 +24,15 @@ export const uploadDocument = async (req: Request, res: Response) => {
     const Filename = req.file.originalname;
 
     const already_uploaded_document = await prisma.document.findFirst({
-      where: {filename : Filename}
-    })
+      where: { companyId, filename: Filename },
+    });
 
-    if(already_uploaded_document){
+    if (already_uploaded_document) {
       return res.status(400).json({
         success: false,
         message: "Document already exists",
       });
     }
-
-    const companyId = req.company.id;
-
-    const documentId = createId();
 
     const r2Key = generateStorageKey(
       companyId,
@@ -54,17 +53,15 @@ export const uploadDocument = async (req: Request, res: Response) => {
       req.file.size,
       fileUrl,
     );
-
-
     console.log(
       `Document ${documentId} uploaded, ready to send to Python service`,
     );
-   
+
     sendToPythonService(document.id, companyId, fileUrl, req.file.originalname);
 
-    return res.status(201).json({
+    return res.status(202).json({
       success: true,
-      message: "Document uploaded successfully",
+      message: "Document uploaded successfully. Processing has started.",
       document: {
         id: document.id,
         filename: document.filename,
@@ -82,19 +79,17 @@ export const uploadDocument = async (req: Request, res: Response) => {
   }
 };
 
-
 export const getDocuments = async (req: Request, res: Response) => {
   try {
     const companyId = req.company.id;
     const page = Number(req.query.page) || 1;
 
     const documents = await doc.getDocuments(companyId, page);
-    
 
     return res.status(200).json({
       success: true,
       documents: documents.documents,
-      pagination: documents.pagination
+      pagination: documents.pagination,
     });
   } catch (error) {
     console.error("Get documents error:", error);
@@ -104,7 +99,6 @@ export const getDocuments = async (req: Request, res: Response) => {
     });
   }
 };
-
 
 export const deleteDocument = async (req: Request, res: Response) => {
   try {
@@ -117,7 +111,6 @@ export const deleteDocument = async (req: Request, res: Response) => {
       });
     }
 
- 
     const document = await doc.findDocument(documentId, companyId);
 
     if (!document) {
@@ -127,13 +120,20 @@ export const deleteDocument = async (req: Request, res: Response) => {
       });
     }
 
-    try {
-      const response = await fetch(`${process.env.RAG_SERVICE_URL}/api/delete-document/${documentId}`, {
+    const response = await fetch(
+      `${process.env.RAG_SERVICE_URL}/api/delete-document/${documentId}`,
+      {
         method: "DELETE",
+      },
+    );
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => null);
+      console.error("RAG delete failed:", response.status, errorBody);
+      return res.status(502).json({
+        success: false,
+        message: "Failed to delete document vectors from RAG service",
       });
-      console.log(response)
-    } catch (qdrantError) {
-      console.error("Qdrant deletion failed:", qdrantError);
     }
 
     const supabaseKey = generateStorageKey(

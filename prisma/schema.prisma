@@ -59,6 +59,7 @@ model Document {
 
   messages     Message[]
   
+  @@unique([companyId, filename])
   @@index([companyId])
   @@map("documents")
 }
